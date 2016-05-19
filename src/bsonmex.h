@@ -17,12 +17,13 @@
  *               bson_destroy() after use. 
  * @return true if success.
  */
-EXTERN_C bool ConvertMxArrayToBSON(const mxArray* input, bson_t* output);
+
+extern bool ConvertMxArrayToBSON(const mxArray* input, bson_t* output);
 /** Convert bson to mxArray*.
  * @param input bson object to convert to mxArray.
  * @param output mxArray to be created.
  * @return true if success.
  */
-EXTERN_C bool ConvertBSONToMxArray(const bson_t* input, mxArray** output);
+extern bool ConvertBSONToMxArray(const bson_t* input, mxArray** output);
 
 #endif /* __BSONMEX_H__ */
