@@ -263,7 +263,11 @@ static bool ConvertDateArrayToBSON(const mxArray* input,
     int64_t date_value;
     if (!value)
       return false;
+    /* TBD:greg 
     date_value = (int64_t)((mxGetScalar(value) - 719529) * 86400);
+    */
+    date_value = (int64_t)(mxGetScalar(value)*1000.0);
+    
     return BSON_APPEND_DATE_TIME(output, (name) ? name : "0", date_value) ==
            true;
   }
@@ -280,7 +284,10 @@ static bool ConvertDateArrayToBSON(const mxArray* input,
     value = mxGetProperty(input, i, "number");
     if (!value)
       return false;
+    /* TBD:greg 
     date_value = (int64_t)((mxGetScalar(value) - 719529) * 86400);
+    */
+    date_value = (int64_t)(mxGetScalar(value) * 1000.0);
     if (!BSON_APPEND_DATE_TIME((name) ? &array : output,
                                key,
                                date_value))
@@ -290,6 +297,61 @@ static bool ConvertDateArrayToBSON(const mxArray* input,
     return false;
   return true;
 }
+
+/** Convert mxArray to BSON date array.
+ */
+static bool ConvertDatetimeArrayToBSON( mxArray* input,
+                                   const char* name,
+                                   bson_t* output) 
+{
+    char key[16];
+    size_t num_elements = mxGetNumberOfElements(input);
+    bson_t array;
+    int i;
+    
+    if (num_elements == 0)
+        return BSON_APPEND_NULL(output, (name) ? name : "0");
+    if (num_elements == 1) 
+    {
+        /* mxArray* value = mxGetProperty(input, 0, "data");
+        */
+        mxArray* value;
+        mexCallMATLAB(1, &value, 1, &input, "posixtime");  
+       
+        int64_t date_value;
+        if (!value)
+          return false;
+        date_value = (int64_t)(mxGetScalar(value) * 1000.0);
+
+        return BSON_APPEND_DATE_TIME(output, (name) ? name : "0", date_value) == true;
+    }
+    if (name && !bson_append_array_begin(output, name, (int)strlen(name), &array))
+        return false;
+
+    for (i = 0; i < num_elements; ++i) 
+    {
+        mxArray* value;
+        int64_t date_value;
+        if (sprintf(key, "%d", i) < 0)
+        	return false;
+        /* value = mxGetProperty(input, i, "number"); */
+        mexCallMATLAB(1, &value, 1, &input, "posixtime");
+        if (!value)
+        	return false;
+        /* TBD:greg 
+        date_value = (int64_t)((mxGetScalar(value) - 719529) * 86400);
+        */
+        date_value = (int64_t)(mxGetScalar(value) * 1000.0);
+        if (!BSON_APPEND_DATE_TIME((name) ? &array : output, key, date_value))
+            return false;
+    }
+
+    if (name && !bson_append_array_end(output, &array))
+        return false;
+        
+    return true;
+}
+
 
 /** Convert cell mxArray to BSON array.
  */
@@ -673,10 +735,17 @@ static bool ConvertArrayToBSON(const mxArray* input,
     case mxFUNCTION_CLASS:
     case mxOPAQUE_CLASS:
     default:
-      if (mxIsClass(input, "bson.datetime")) {
+      if(mxIsClass(input, "datetime")) 
+      {
+        return ConvertDatetimeArrayToBSON(array, name, output);
+        break;        
+      } 
+      else if (mxIsClass(input, "bson.datetime")) 
+      {
         return ConvertDateArrayToBSON(array, name, output);
         break;        
-      }
+      } 
+       
       return false;
   }
   if (array != input)
@@ -1185,7 +1254,7 @@ static void MergeStructArrays(mxArray** array) {
   *array = new_array;
 }
 
-/** Merge cell array of bson.datetime arrays to an N-D date array.
+/** Merge cell array of datetime arrays to an N-D date array.
  */
 static void MergeDateArrays(mxArray** array) {
   int size = mxGetNumberOfElements(*array);
@@ -1250,7 +1319,9 @@ static void TryMergeCellToNDArray(mxArray** array) {
       MergeStructArrays(array);
       break;
     default:
-      if (mxIsClass(element, "bson.datetime"))
+      if (mxIsClass(element, "datetime"))
+        MergeDateArrays(array);
+      else if (mxIsClass(element, "bson.datetime"))
         MergeDateArrays(array);
       break;
   }
@@ -1362,8 +1433,12 @@ static mxArray* ConvertNextToMxArray(bson_iter_t* it) {
       break;
     case BSON_TYPE_DATE_TIME: {
       int64_t date_value = bson_iter_date_time(it);
+      /* 
       mxArray* date_number = mxCreateDoubleScalar(
           ((double)date_value / 86400.0) + 719529);
+      mexCallMATLAB(1, &element, 1, &date_number, "bson.datetime"); 
+      */
+      mxArray* date_number = mxCreateDoubleScalar((double)date_value/1000.0);
       mexCallMATLAB(1, &element, 1, &date_number, "bson.datetime");
       mxDestroyArray(date_number);
       break;
@@ -1386,9 +1461,13 @@ static mxArray* ConvertNextToMxArray(bson_iter_t* it) {
       break;
     case BSON_TYPE_TIMESTAMP: {
       time_t time_value = bson_iter_time_t(it);
+      /* TBD: greg
       mxArray* date_number = mxCreateDoubleScalar(
           ((double)time_value / 86400.0) + 719529);
       mexCallMATLAB(1, &element, 1, &date_number, "bson.datetime");
+      */
+      mxArray* date_number = mxCreateDoubleScalar((double)time_value / 1000.0);
+      mexCallMATLAB(1, &element, 1, &date_number, "utc2obj");
       mxDestroyArray(date_number);
       break;
     }
