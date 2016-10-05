@@ -263,7 +263,7 @@ static bool ConvertDateArrayToBSON(const mxArray* input,
     int64_t date_value;
     if (!value)
       return false;
-    /* TBD:greg 
+    /* TBD:greg - assume numeirc is UTC timestamp (seconds form 1-1-1970)
     date_value = (int64_t)((mxGetScalar(value) - 719529) * 86400);
     */
     date_value = (int64_t)(mxGetScalar(value)*1000.0);
@@ -1467,7 +1467,7 @@ static mxArray* ConvertNextToMxArray(bson_iter_t* it) {
       mexCallMATLAB(1, &element, 1, &date_number, "bson.datetime");
       */
       mxArray* date_number = mxCreateDoubleScalar((double)time_value / 1000.0);
-      mexCallMATLAB(1, &element, 1, &date_number, "utc2obj");
+      mexCallMATLAB(1, &element, 1, &date_number, "bson.datetime");
       mxDestroyArray(date_number);
       break;
     }

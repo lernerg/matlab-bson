@@ -17,7 +17,6 @@
  *               bson_destroy() after use. 
  * @return true if success.
  */
-
 extern bool ConvertMxArrayToBSON(const mxArray* input, bson_t* output);
 /** Convert bson to mxArray*.
  * @param input bson object to convert to mxArray.
